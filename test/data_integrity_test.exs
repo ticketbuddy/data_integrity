@@ -102,5 +102,13 @@ defmodule DataIntegrityTest do
 
       assert {:error, :invalid_signature} == MyDataIntegrity.verify(signed_content)
     end
+
+    test "detects when timestamp has been changed" do
+      signed_content = MyDataIntegrity.add_signature(%{a: "b"}, {5, :minutes})
+
+      signed_content = Map.put(signed_content, :__valid_until__, "999999999")
+
+      assert {:error, :invalid_signature} == MyDataIntegrity.verify(signed_content)
+    end
   end
 end
