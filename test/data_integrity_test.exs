@@ -104,4 +104,30 @@ defmodule DataIntegrityTest do
              |> MyDataIntegrity.valid?()
     end
   end
+
+  describe "verify/1" do
+    test "when signature of string is valid" do
+      content = MyDataIntegrity.add_signature("hello")
+
+      assert {:ok, "hello"} == MyDataIntegrity.verify(content)
+    end
+
+    test "when signature of string is invalid" do
+      assert {:error, :invalid_signature} == MyDataIntegrity.verify("foo.bar")
+    end
+
+    test "when signature of map is valid" do
+      content = MyDataIntegrity.add_signature(%{a: "b"})
+
+      assert {:ok, %{a: "b"}} == MyDataIntegrity.verify(content)
+    end
+
+    test "when signature of map is invalid" do
+      assert {:error, :invalid_signature} ==
+               MyDataIntegrity.verify(%{
+                 a: "b",
+                 signature: "foo"
+               })
+    end
+  end
 end

@@ -24,14 +24,18 @@ defmodule DataIntegrity do
         signature <> "." <> data
       end
 
-      def valid?(data) when is_map(data) do
-        {signature, data} = Map.pop(data, :signature)
-        valid?(signature, data)
+      def verify(data) do
+        {signature, content} = destruct(data)
+
+        case valid?(signature, content) do
+          true -> {:ok, content}
+          false -> {:error, :invalid_signature}
+        end
       end
 
-      def valid?(data) when is_binary(data) do
-        [signature, signed_data] = String.split(data, ".", parts: 2)
-        valid?(signature, signed_data)
+      def valid?(data) do
+        {signature, data} = destruct(data)
+        valid?(signature, data)
       end
 
       def valid?(signature, data) do
@@ -39,6 +43,15 @@ defmodule DataIntegrity do
           notation = Notation.notate(data)
           signature == sign_with_salt(notation, salt)
         end)
+      end
+
+      def destruct(data) when is_map(data) do
+        Map.pop(data, :signature)
+      end
+
+      def destruct(data) when is_binary(data) do
+        [signature, signed_data] = String.split(data, ".", parts: 2)
+        {signature, signed_data}
       end
 
       defp sign_with_salt(notation, salt) do
