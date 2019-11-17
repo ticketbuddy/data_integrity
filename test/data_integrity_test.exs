@@ -1,149 +1,106 @@
 defmodule DataIntegrityTest do
   use ExUnit.Case
 
+  import Mox
+  setup :verify_on_exit!
+  setup :set_mox_global
+
+  setup do
+    DataIntegrity.SystemTimeMock
+    |> stub(:now, fn ->
+      9_999_999_999_999
+    end)
+
+    :ok
+  end
+
   defmodule MyDataIntegrity do
     use DataIntegrity,
       salts: [
-        "B92TbN3sxHmf6nUGCbRGD/+rnE17U0gleCAFdyLXUZ7oW4ouPQCh6l+QVe7NYY0x",
-        "ATjzRG6NudAw3gckJaw0jWBSPyHVyP9UJXNWunj3rLzpVoHxb1neldZSywH40AWL",
-        "J6EkQgbTOsp0qvs6N2QB5alR6JOJ4/oeF5BR46BU9lQoDGO57JlVZQuQ23Edil9s"
+        "B92TbN3sxHmf6nUGCbRGD/+rnE17U0gleCAFdyLXUZ7oW4ouPQCh6l+QVe7NYY0x"
       ]
   end
 
-  describe "signs a map data type, and then validates it" do
-    test "simples" do
-      data = %{a: "b", c: "d"}
+  describe "when content is a string" do
+    test "add signature to string" do
+      signature = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged", {5, :minutes})
 
-      signature = MyDataIntegrity.sign(data)
-      assert MyDataIntegrity.valid?(signature, data)
+      assert signature ==
+               "508DB5886D0260DD50A74EF78DE31F48.10000000299999.ensure-i-a.m-not-chan.ged"
+
+      assert {:ok, "ensure-i-a.m-not-chan.ged"} == MyDataIntegrity.verify(signature)
     end
 
-    test "order doesn't matter" do
-      data = %{a: "b", c: "d"}
-      different_order_data = %{c: "d", a: "b"}
+    test "changing timestamp changes signature" do
+      signed_5_mins = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged", {5, :minutes})
+      signed_6_mins = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged", {6, :minutes})
 
-      signature = MyDataIntegrity.sign(data)
-      assert MyDataIntegrity.valid?(signature, different_order_data)
+      [signature_5_mins, _] = String.split(signed_5_mins, ".", parts: 2)
+      [signature_6_mins, _] = String.split(signed_6_mins, ".", parts: 2)
+
+      assert byte_size(signature_5_mins) == 32
+      assert byte_size(signature_6_mins) == 32
+
+      refute signature_5_mins == signature_6_mins
     end
 
-    test "atoms and string keys are equal" do
-      data = %{a: "b", c: "d"}
-      modified_data = %{"c" => "d", a: "b"}
+    test "when signature has expired" do
+      DataIntegrity.SystemTimeMock
+      |> expect(:now, fn ->
+        0
+      end)
 
-      signature = MyDataIntegrity.sign(data)
-      assert MyDataIntegrity.valid?(signature, modified_data)
-    end
-  end
+      signature_string = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged", {6, :minutes})
 
-  describe "detects modifications" do
-    test "rejects modified data" do
-      data = %{a: "b", c: "d"}
-      modified_data = %{a: "u", c: "o"}
-
-      signature = MyDataIntegrity.sign(data)
-      refute MyDataIntegrity.valid?(signature, modified_data)
+      assert {:error, :signature_expired} == MyDataIntegrity.verify(signature_string)
     end
 
-    test "rejects modified data types" do
-      data = %{a: "b", c: "7"}
-      modified_data = %{a: "b", c: 7}
+    test "when signed content is not correctly formatted expired" do
+      signature_string = "foo-bar-i-am-not-secured"
 
-      signature = MyDataIntegrity.sign(data)
-      refute MyDataIntegrity.valid?(signature, modified_data)
+      assert {:error, :invalid_signature} == MyDataIntegrity.verify(signature_string)
     end
   end
 
-  describe "add_signature/1" do
-    test "adds signature to provided string" do
-      signature = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged")
+  describe "when content is a map" do
+    test "adds signature" do
+      signed_content = MyDataIntegrity.add_signature(%{a: "b"}, {5, :minutes})
 
-      assert signature in [
-               "84F0618319A49726FDC4C119E725B1C3.ensure-i-a.m-not-chan.ged",
-               "2C3C49D75A3356B94E0D155122A29E4D.ensure-i-a.m-not-chan.ged",
-               "B32BC91AC37491965F1BD25E0E8B3941.ensure-i-a.m-not-chan.ged"
-             ]
-    end
-
-    test "adds signature to provided map" do
       assert %{
                a: "b",
-               signature: signature
-             } = MyDataIntegrity.add_signature(%{a: "b"})
+               signature: "7DDB3AFA3A3E5B9698C6D1C6292B9725",
+               __valid_until__: "10000000299999"
+             } == signed_content
 
-      assert signature in [
-               "3BE8E5D87A68AAF9DA3504BD98DC5B53",
-               "5B7B9957E9ADE687804932D99F33DBF0",
-               "575B5E44E39BDF25F9374CAD15A89061"
-             ]
+      assert {:ok, %{a: "b"}} == MyDataIntegrity.verify(signed_content)
     end
 
-    test "validates signature in map" do
-      data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
-      assert MyDataIntegrity.valid?(data_with_signature)
+    test "when data is expired" do
+      DataIntegrity.SystemTimeMock
+      |> expect(:now, fn ->
+        0
+      end)
+
+      signed_content = MyDataIntegrity.add_signature(%{a: "b"}, {5, :minutes})
+
+      assert {:error, :signature_expired} == MyDataIntegrity.verify(signed_content)
     end
 
-    test "when data is not in correct format" do
-      refute MyDataIntegrity.valid?("huh?")
+    test "when signed content does not contain a expirey" do
+      signed_content = %{
+        a: "b",
+        signature: "7DDB3AFA3A3E5B9698C6D1C6292B9725"
+      }
+
+      assert {:error, :invalid_signature} == MyDataIntegrity.verify(signed_content)
     end
 
-    test "when data is not in correct format 2" do
-      refute MyDataIntegrity.valid?("huh?.huh?")
-    end
+    test "when signed content does not contain a expirey or signature" do
+      signed_content = %{
+        a: "b"
+      }
 
-    test "when data is not in correct format 3" do
-      refute MyDataIntegrity.valid?(%{a: "b"})
-    end
-
-    test "validates signature in string" do
-      signed_string = "B32BC91AC37491965F1BD25E0E8B3941.ensure-i-a.m-not-chan.ged"
-
-      assert MyDataIntegrity.valid?(signed_string)
-    end
-
-    test "rejects incorrect signature in map" do
-      data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
-
-      refute data_with_signature
-             |> Map.put(:signature, "abc")
-             |> MyDataIntegrity.valid?()
-    end
-
-    test "detects change in data" do
-      data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
-
-      refute data_with_signature
-             |> Map.put(:z, "abc")
-             |> MyDataIntegrity.valid?()
-    end
-  end
-
-  describe "verify/1" do
-    test "when signature of string is valid" do
-      content = MyDataIntegrity.add_signature("hello")
-
-      assert {:ok, "hello"} == MyDataIntegrity.verify(content)
-    end
-
-    test "when signature of string is invalid" do
-      assert {:error, :invalid_signature} == MyDataIntegrity.verify("foo.bar")
-    end
-
-    test "when signature of map is valid" do
-      content = MyDataIntegrity.add_signature(%{a: "b"})
-
-      assert {:ok, %{a: "b"}} == MyDataIntegrity.verify(content)
-    end
-
-    test "when signature of map is invalid" do
-      assert {:error, :invalid_signature} ==
-               MyDataIntegrity.verify(%{
-                 a: "b",
-                 signature: "foo"
-               })
-    end
-
-    test "when the data is not valid at all" do
-      assert {:error, :invalid_signature} == MyDataIntegrity.verify("huh?")
+      assert {:error, :invalid_signature} == MyDataIntegrity.verify(signed_content)
     end
   end
 end

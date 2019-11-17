@@ -21,6 +21,7 @@ defmodule DataIntegrity.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:mox, "~> 0.5", only: :test},
       {:crimpex, git: "https://github.com/BBC-News/crimpex.git"}
     ]
   end

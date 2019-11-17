@@ -6,67 +6,61 @@ defmodule DataIntegrity do
 
   defmacro __using__(salts: salts) do
     quote do
-      @salts unquote(salts)
+      use DataIntegrity.Signer, salts: unquote(salts)
 
-      def sign(data) do
+      def add_signature(data, ttl) when is_map(data) do
+        data =
+          data
+          |> Map.put(:__valid_until__, DataIntegrity.Time.expires_in_timestamp(ttl))
+
+        signature = sign(data)
+
         data
-        |> Notation.notate()
-        |> sign_with_salt(get_salt())
+        |> Map.put(:signature, signature)
       end
 
-      def add_signature(data) when is_map(data) do
-        signature = sign(data)
-        Map.put(data, :signature, signature)
-      end
-
-      def add_signature(data) when is_binary(data) do
-        signature = sign(data)
-        signature <> "." <> data
+      def add_signature(data, ttl) when is_binary(data) do
+        signable_content = DataIntegrity.Time.expires_in_timestamp(ttl) <> "." <> data
+        signature = sign(signable_content)
+        signature <> "." <> signable_content
       end
 
       def verify(data) do
-        with {signature, content} <- destruct(data),
-             true <- valid?(signature, content) do
+        with {signature, timestamp, signed_values, content} <- destruct(data),
+             true <- valid?(signature, signed_values),
+             :ok <- expired(timestamp) do
           {:ok, content}
         else
-          _error ->
+          :expired ->
+            {:error, :signature_expired}
+
+          error ->
             {:error, :invalid_signature}
         end
       end
 
-      def valid?(data) do
-        case destruct(data) do
-          {signature, data} -> valid?(signature, data)
-          _ -> false
-        end
-      end
-
-      def valid?(signature, data) do
-        Enum.any?(@salts, fn salt ->
-          notation = Notation.notate(data)
-          signature == sign_with_salt(notation, salt)
-        end)
-      end
-
       def destruct(data) when is_map(data) do
-        Map.pop(data, :signature)
+        {signature, signed_data} = Map.pop(data, :signature)
+        {timestamp, content} = Map.pop(signed_data, :__valid_until__)
+
+        {signature, timestamp, signed_data, content}
       end
 
       def destruct(data) when is_binary(data) do
-        case String.split(data, ".", parts: 2) do
-          [signature, signed_data] -> {signature, signed_data}
-          _ -> :error
+        case String.split(data, ".", parts: 3) do
+          [signature, timestamp, content] ->
+            {signature, timestamp, timestamp <> "." <> content, content}
+
+          _ ->
+            :error
         end
       end
 
-      defp sign_with_salt(notation, salt) do
-        :crypto.hash(:md5, salt <> notation) |> Base.encode16()
-      end
-
-      defp get_salt do
-        @salts
-        |> Enum.shuffle()
-        |> Enum.at(0)
+      def expired(expires_at) do
+        case DataIntegrity.Time.now() < String.to_integer(expires_at) do
+          true -> :ok
+          false -> :expired
+        end
       end
     end
   end

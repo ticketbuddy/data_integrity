@@ -4,6 +4,9 @@ Sign a value with a set of secret salts to ensure it's
 integrity when returned back to a server with the same
 set of salts.
 
+This allows the client to read the data, but not to
+alter it.
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
