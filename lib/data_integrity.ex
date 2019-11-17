@@ -19,9 +19,19 @@ defmodule DataIntegrity do
         Map.put(data, :signature, signature)
       end
 
+      def add_signature(data) when is_binary(data) do
+        signature = sign(data)
+        signature <> "." <> data
+      end
+
       def valid?(data) when is_map(data) do
         {signature, data} = Map.pop(data, :signature)
         valid?(signature, data)
+      end
+
+      def valid?(data) when is_binary(data) do
+        [signature, signed_data] = String.split(data, ".", parts: 2)
+        valid?(signature, signed_data)
       end
 
       def valid?(signature, data) do

@@ -54,6 +54,16 @@ defmodule DataIntegrityTest do
   end
 
   describe "add_signature/1" do
+    test "adds signature to provided string" do
+      signature = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged")
+
+      assert signature in [
+               "84F0618319A49726FDC4C119E725B1C3.ensure-i-a.m-not-chan.ged",
+               "2C3C49D75A3356B94E0D155122A29E4D.ensure-i-a.m-not-chan.ged",
+               "B32BC91AC37491965F1BD25E0E8B3941.ensure-i-a.m-not-chan.ged"
+             ]
+    end
+
     test "adds signature to provided map" do
       assert %{
                a: "b",
@@ -70,6 +80,12 @@ defmodule DataIntegrityTest do
     test "validates signature in map" do
       data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
       assert MyDataIntegrity.valid?(data_with_signature)
+    end
+
+    test "validates signature in string" do
+      signed_string = "B32BC91AC37491965F1BD25E0E8B3941.ensure-i-a.m-not-chan.ged"
+
+      assert MyDataIntegrity.valid?(signed_string)
     end
 
     test "rejects incorrect signature in map" do
