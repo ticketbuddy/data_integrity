@@ -1,29 +1,37 @@
 defmodule DataIntegrityTest do
   use ExUnit.Case
-  doctest DataIntegrity
+
+  defmodule MyDataIntegrity do
+    use DataIntegrity,
+      salts: [
+        "B92TbN3sxHmf6nUGCbRGD/+rnE17U0gleCAFdyLXUZ7oW4ouPQCh6l+QVe7NYY0x",
+        "ATjzRG6NudAw3gckJaw0jWBSPyHVyP9UJXNWunj3rLzpVoHxb1neldZSywH40AWL",
+        "J6EkQgbTOsp0qvs6N2QB5alR6JOJ4/oeF5BR46BU9lQoDGO57JlVZQuQ23Edil9s"
+      ]
+  end
 
   describe "signs a map data type, and then validates it" do
     test "simples" do
       data = %{a: "b", c: "d"}
 
-      signature = DataIntegrity.sign(data)
-      assert DataIntegrity.valid?(signature, data)
+      signature = MyDataIntegrity.sign(data)
+      assert MyDataIntegrity.valid?(signature, data)
     end
 
     test "order doesn't matter" do
       data = %{a: "b", c: "d"}
       different_order_data = %{c: "d", a: "b"}
 
-      signature = DataIntegrity.sign(data)
-      assert DataIntegrity.valid?(signature, different_order_data)
+      signature = MyDataIntegrity.sign(data)
+      assert MyDataIntegrity.valid?(signature, different_order_data)
     end
 
     test "atoms and string keys are equal" do
       data = %{a: "b", c: "d"}
       modified_data = %{"c" => "d", a: "b"}
 
-      signature = DataIntegrity.sign(data)
-      assert DataIntegrity.valid?(signature, modified_data)
+      signature = MyDataIntegrity.sign(data)
+      assert MyDataIntegrity.valid?(signature, modified_data)
     end
   end
 
@@ -32,16 +40,16 @@ defmodule DataIntegrityTest do
       data = %{a: "b", c: "d"}
       modified_data = %{a: "u", c: "o"}
 
-      signature = DataIntegrity.sign(data)
-      refute DataIntegrity.valid?(signature, modified_data)
+      signature = MyDataIntegrity.sign(data)
+      refute MyDataIntegrity.valid?(signature, modified_data)
     end
 
     test "rejects modified data types" do
       data = %{a: "b", c: "7"}
       modified_data = %{a: "b", c: 7}
 
-      signature = DataIntegrity.sign(data)
-      refute DataIntegrity.valid?(signature, modified_data)
+      signature = MyDataIntegrity.sign(data)
+      refute MyDataIntegrity.valid?(signature, modified_data)
     end
   end
 
@@ -50,7 +58,7 @@ defmodule DataIntegrityTest do
       assert %{
                a: "b",
                signature: signature
-             } = DataIntegrity.add_signature(%{a: "b"})
+             } = MyDataIntegrity.add_signature(%{a: "b"})
 
       assert signature in [
                "3BE8E5D87A68AAF9DA3504BD98DC5B53",
@@ -60,24 +68,24 @@ defmodule DataIntegrityTest do
     end
 
     test "validates signature in map" do
-      data_with_signature = DataIntegrity.add_signature(%{c: "d"})
-      assert DataIntegrity.valid?(data_with_signature)
+      data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
+      assert MyDataIntegrity.valid?(data_with_signature)
     end
 
     test "rejects incorrect signature in map" do
-      data_with_signature = DataIntegrity.add_signature(%{c: "d"})
+      data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
 
       refute data_with_signature
              |> Map.put(:signature, "abc")
-             |> DataIntegrity.valid?()
+             |> MyDataIntegrity.valid?()
     end
 
     test "detects change in data" do
-      data_with_signature = DataIntegrity.add_signature(%{c: "d"})
+      data_with_signature = MyDataIntegrity.add_signature(%{c: "d"})
 
       refute data_with_signature
              |> Map.put(:z, "abc")
-             |> DataIntegrity.valid?()
+             |> MyDataIntegrity.valid?()
     end
   end
 end
