@@ -1,0 +1,3 @@
+%{
+  "crimpex": {:git, "https://github.com/BBC-News/crimpex.git", "764ee86963ef0a88310f7e0b43aa3284608dd3fa", []},
+}
