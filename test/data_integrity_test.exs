@@ -82,6 +82,18 @@ defmodule DataIntegrityTest do
       assert MyDataIntegrity.valid?(data_with_signature)
     end
 
+    test "when data is not in correct format" do
+      refute MyDataIntegrity.valid?("huh?")
+    end
+
+    test "when data is not in correct format 2" do
+      refute MyDataIntegrity.valid?("huh?.huh?")
+    end
+
+    test "when data is not in correct format 3" do
+      refute MyDataIntegrity.valid?(%{a: "b"})
+    end
+
     test "validates signature in string" do
       signed_string = "B32BC91AC37491965F1BD25E0E8B3941.ensure-i-a.m-not-chan.ged"
 
@@ -128,6 +140,10 @@ defmodule DataIntegrityTest do
                  a: "b",
                  signature: "foo"
                })
+    end
+
+    test "when the data is not valid at all" do
+      assert {:error, :invalid_signature} == MyDataIntegrity.verify("huh?")
     end
   end
 end

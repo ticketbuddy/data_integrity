@@ -25,17 +25,20 @@ defmodule DataIntegrity do
       end
 
       def verify(data) do
-        {signature, content} = destruct(data)
-
-        case valid?(signature, content) do
-          true -> {:ok, content}
-          false -> {:error, :invalid_signature}
+        with {signature, content} <- destruct(data),
+             true <- valid?(signature, content) do
+          {:ok, content}
+        else
+          _error ->
+            {:error, :invalid_signature}
         end
       end
 
       def valid?(data) do
-        {signature, data} = destruct(data)
-        valid?(signature, data)
+        case destruct(data) do
+          {signature, data} -> valid?(signature, data)
+          _ -> false
+        end
       end
 
       def valid?(signature, data) do
@@ -50,8 +53,10 @@ defmodule DataIntegrity do
       end
 
       def destruct(data) when is_binary(data) do
-        [signature, signed_data] = String.split(data, ".", parts: 2)
-        {signature, signed_data}
+        case String.split(data, ".", parts: 2) do
+          [signature, signed_data] -> {signature, signed_data}
+          _ -> :error
+        end
       end
 
       defp sign_with_salt(notation, salt) do
