@@ -8,6 +8,8 @@ defmodule DataIntegrity do
     quote do
       use DataIntegrity.Signer, salts: unquote(salts)
 
+      def add_signature(data, ttl \\ :no_ttl)
+
       def add_signature(data, ttl) when is_map(data) do
         data =
           data
@@ -57,7 +59,9 @@ defmodule DataIntegrity do
       end
 
       def expired(expires_at) do
-        case DataIntegrity.Time.now() < String.to_integer(expires_at) do
+        expires_at_timestamp = String.to_integer(expires_at)
+
+        case DataIntegrity.Time.now() < expires_at_timestamp || expires_at_timestamp == 0 do
           true -> :ok
           false -> :expired
         end
