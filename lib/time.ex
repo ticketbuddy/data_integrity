@@ -17,6 +17,10 @@ defmodule DataIntegrity.Time do
     @sys_time.now()
   end
 
+  def expires_in_timestamp(:no_ttl) do
+    "0"
+  end
+
   def expires_in_timestamp(ttl) do
     Integer.to_string(@sys_time.now() + to_milliseconds(ttl))
   end

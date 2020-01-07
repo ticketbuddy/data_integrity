@@ -22,6 +22,15 @@ defmodule DataIntegrityTest do
   end
 
   describe "when content is a string" do
+    test "basic signature without timestamp" do
+      signature = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged")
+
+      assert signature ==
+               "5C51C01610655FC2A53E54C9F0B0276D.0.ensure-i-a.m-not-chan.ged"
+
+      assert {:ok, "ensure-i-a.m-not-chan.ged"} == MyDataIntegrity.verify(signature)
+    end
+
     test "add signature to string" do
       signature = MyDataIntegrity.add_signature("ensure-i-a.m-not-chan.ged", {5, :minutes})
 
@@ -63,6 +72,18 @@ defmodule DataIntegrityTest do
   end
 
   describe "when content is a map" do
+    test "adds signature without expiry timestamp" do
+      signed_content = MyDataIntegrity.add_signature(%{a: "b"})
+
+      assert %{
+               a: "b",
+               __valid_until__: "0",
+               signature: "71CB7191980780E5F2703A3E5E4ED695"
+             } == signed_content
+
+      assert {:ok, %{a: "b"}} == MyDataIntegrity.verify(signed_content)
+    end
+
     test "adds signature" do
       signed_content = MyDataIntegrity.add_signature(%{a: "b"}, {5, :minutes})
 
