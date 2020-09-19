@@ -1,4 +1,4 @@
 %{
-  "crimpex": {:git, "https://github.com/BBC-News/crimpex.git", "764ee86963ef0a88310f7e0b43aa3284608dd3fa", []},
-  "mox": {:hex, :mox, "0.5.1", "f86bb36026aac1e6f924a4b6d024b05e9adbed5c63e8daa069bd66fb3292165b", [:mix], [], "hexpm"},
+  "crimpex": {:git, "https://github.com/bbc-news/crimpex.git", "c73858882286b623dbf22027df7efd94ec029d59", []},
+  "mox": {:hex, :mox, "0.5.1", "f86bb36026aac1e6f924a4b6d024b05e9adbed5c63e8daa069bd66fb3292165b", [:mix], [], "hexpm", "052346cf322311c49a0f22789f3698eea030eec09b8c47367f0686ef2634ae14"},
 }

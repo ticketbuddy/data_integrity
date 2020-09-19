@@ -22,7 +22,7 @@ defmodule DataIntegrity.MixProject do
   defp deps do
     [
       {:mox, "~> 0.5", only: :test},
-      {:crimpex, git: "https://github.com/BBC-News/crimpex.git"}
+      {:crimpex, git: "https://github.com/bbc-news/crimpex.git"}
     ]
   end
 end
